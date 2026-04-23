@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: altairis-db
+    environment:
+      POSTGRES_DB: altairis
+      POSTGRES_USER: altairis
+      POSTGRES_PASSWORD: altairis_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U altairis -d altairis"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: altairis-backend
+    ports:
+      - "5000:5000"
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=altairis;Username=altairis;Password=altairis_pass"
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: altairis-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:5000
+    depends_on:
+      - backend
+    restart: on-failure
+
+volumes:
+  postgres_data:
